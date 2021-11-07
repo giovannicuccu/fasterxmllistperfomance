@@ -1,5 +1,6 @@
 package it.giovannicuccu.fasterxmllistperformance;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -14,6 +15,7 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -26,17 +28,32 @@ public class FasterXMLPerformance extends PerformanceBaseClass {
     private ObjectReader objectReaderPersoneList;
     private ObjectWriter objectWriterPersoneList;
 
+    private List<Persona> persone=new ArrayList<>();
+    private String personeStr;
+
+    private int numPersone=10;
+
 
     private CollectionType typeReference =
             TypeFactory.defaultInstance().constructCollectionType(List.class, Persona.class);
 
-    public FasterXMLPerformance() {
+    public FasterXMLPerformance()  {
         objectMapper=new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectReaderPersone=objectMapper.readerFor(PersoneForBenchmark.class);
         objectWriterPersone=objectMapper.writerFor(PersoneForBenchmark.class);
         objectReaderPersoneList=objectMapper.readerFor(Persona.class);
         objectWriterPersoneList=objectMapper.writerFor(Persona.class);
+        EasyRandom easyRandom = new EasyRandom();
+        for (int i=0;i<=numPersone;i++) {
+            persone.add(easyRandom.nextObject(Persona.class));
+        }
+        try {
+            personeStr = objectMapper.writeValueAsString(persone);
+        } catch (Exception e) {
+            System.out.println(e);
+            throw new RuntimeException(e);
+        }
     }
 
     public static void main(String[] args) throws IOException {
@@ -44,6 +61,24 @@ public class FasterXMLPerformance extends PerformanceBaseClass {
     }
 
     @Fork(value = 1, warmups = 1)
+    @Warmup(iterations = 10, time = 5, timeUnit = TimeUnit.SECONDS)
+    @Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Benchmark
+    public void aFasterXMLStandardWriteForDiagnostic(Blackhole bh) throws Exception {
+        testMapperWrite(persone, bh, objectMapper);
+    }
+
+    @Fork(value = 1, warmups = 1)
+    @Warmup(iterations = 10, time = 5, timeUnit = TimeUnit.SECONDS)
+    @Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Benchmark
+    public void aFasterXMLStandardReadForDiagnostic(Blackhole bh) throws Exception {
+        testMapperRead(personeStr, bh, objectMapper);
+    }
+
+/*    @Fork(value = 1, warmups = 1)
     @Warmup(iterations = 10, time = 5, timeUnit = TimeUnit.SECONDS)
     @Measurement(iterations = 5, time = 5, timeUnit = TimeUnit.SECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -125,7 +160,7 @@ public class FasterXMLPerformance extends PerformanceBaseClass {
     @Benchmark
     public void fasterXMLStandardTypeReference(BenchmarkConfig config, Blackhole bh) throws Exception {
         testMapperWithTypeReference(config.persone, bh, objectMapper);
-    }
+    }*/
 
 /*    @Threads(6)
     @Fork(value = 1, warmups = 1)
